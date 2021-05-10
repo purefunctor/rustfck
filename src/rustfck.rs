@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::io::Read;
 use std::num::Wrapping;
-use Either::{Left, Right};
+use either::Either::{Left, Right};
 use Instruction::*;
 use Token::*;
 
@@ -24,13 +24,6 @@ pub enum Instruction {
     CellPrint,
     CellFetch,
     TapeLoop(Vec<Instruction>),
-}
-
-// `Result` implies success and failure,
-// `Either` is more generalized.
-enum Either<L, R> {
-    Left(L),
-    Right(R),
 }
 
 pub fn read_token(c: char) -> Option<Token> {
