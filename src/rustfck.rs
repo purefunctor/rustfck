@@ -15,6 +15,22 @@ pub enum Token {
     LoopStop,
 }
 
+impl Token {
+    pub fn from_char(c: char) -> Option<Self> {
+        match c {
+            '>' => Some(MoveRight),
+            '<' => Some(MoveLeft),
+            '+' => Some(IncCell),
+            '-' => Some(DecCell),
+            '.' => Some(PrintIO),
+            ',' => Some(FetchIO),
+            '[' => Some(LoopStart),
+            ']' => Some(LoopStop),
+            _ => None,
+        }
+    }
+}
+
 pub enum Instruction {
     TapeRight,
     TapeLeft,
@@ -25,57 +41,45 @@ pub enum Instruction {
     TapeLoop(Vec<Instruction>),
 }
 
-fn read_token(c: char) -> Option<Token> {
-    match c {
-        '>' => Some(MoveRight),
-        '<' => Some(MoveLeft),
-        '+' => Some(IncCell),
-        '-' => Some(DecCell),
-        '.' => Some(PrintIO),
-        ',' => Some(FetchIO),
-        '[' => Some(LoopStart),
-        ']' => Some(LoopStop),
-        _ => None,
-    }
-}
+impl Instruction {
+    fn from_tokens(tokens: Vec<Token>) -> Result<Vec<Self>, String> {
+        let mut instructions: Vec<Instruction> = Vec::new();
+        let mut context: Vec<Vec<Instruction>> = Vec::new();
 
-fn make_instructions(tokens: Vec<Option<Token>>) -> Result<Vec<Instruction>, String> {
-    let mut instructions: Vec<Instruction> = Vec::new();
-    let mut context: Vec<Vec<Instruction>> = Vec::new();
-
-    for token in tokens.into_iter().flatten() {
-        let e = match token {
-            MoveRight => Right(TapeRight),
-            MoveLeft => Right(TapeLeft),
-            IncCell => Right(CellInc),
-            DecCell => Right(CellDec),
-            PrintIO => Right(CellPrint),
-            FetchIO => Right(CellFetch),
-            LoopStart => Left(LoopStart),
-            LoopStop => Left(LoopStop),
-        };
-        if let Right(r) = e {
-            context.last_mut().unwrap_or(&mut instructions).push(r);
-        } else if let Left(l) = e {
-            match l {
-                LoopStart => {
-                    context.push(Vec::new());
-                }
-                LoopStop => {
-                    if let Some(child) = context.pop() {
-                        context
-                            .last_mut()
-                            .unwrap_or(&mut instructions)
-                            .push(TapeLoop(child));
-                    } else {
-                        return Err("unmatched brackets!".to_string());
-                    }
-                }
-                _ => (),
+        for token in tokens.into_iter() {
+            let e = match token {
+                MoveRight => Right(TapeRight),
+                MoveLeft => Right(TapeLeft),
+                IncCell => Right(CellInc),
+                DecCell => Right(CellDec),
+                PrintIO => Right(CellPrint),
+                FetchIO => Right(CellFetch),
+                LoopStart => Left(LoopStart),
+                LoopStop => Left(LoopStop),
             };
-        };
+            if let Right(r) = e {
+                context.last_mut().unwrap_or(&mut instructions).push(r);
+            } else if let Left(l) = e {
+                match l {
+                    LoopStart => {
+                        context.push(Vec::new());
+                    }
+                    LoopStop => {
+                        if let Some(child) = context.pop() {
+                            context
+                                .last_mut()
+                                .unwrap_or(&mut instructions)
+                                .push(TapeLoop(child));
+                        } else {
+                            return Err("unmatched brackets!".to_string());
+                        }
+                    }
+                    _ => (),
+                };
+            };
+        }
+        Ok(instructions)
     }
-    Ok(instructions)
 }
 
 type Cell = Wrapping<u8>;
@@ -130,7 +134,8 @@ fn run(instructions: &[Instruction], tape: &mut Tape, pointer: &mut usize) -> Re
 }
 
 pub fn interpret(source: &str) -> Result<(), String> {
-    let instructions = make_instructions(source.chars().map(read_token).collect());
+    let instructions =
+        Instruction::from_tokens(source.chars().map(Token::from_char).flatten().collect());
 
     let mut tape: Tape = vec![Wrapping(0); 1024];
     let mut pointer = 0;
