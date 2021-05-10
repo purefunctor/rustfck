@@ -134,16 +134,15 @@ fn run(instructions: &[Instruction], tape: &mut Tape, pointer: &mut usize) -> Re
 }
 
 pub fn interpret(source: &str) -> Result<(), String> {
-    let instructions = Instruction::from_tokens(
+    let mut tape: Tape = vec![Wrapping(0); 1024];
+    let mut pointer = 0;
+
+    Instruction::from_tokens(
         source
             .chars()
             .map(Token::from_char)
             .flat_map(|t| t.into_iter())
             .collect(),
-    );
-
-    let mut tape: Tape = vec![Wrapping(0); 1024];
-    let mut pointer = 0;
-
-    instructions.and_then(|i| run(&i, &mut tape, &mut pointer))
+    )
+    .and_then(|i| run(&i, &mut tape, &mut pointer))
 }
