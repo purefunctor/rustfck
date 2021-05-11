@@ -81,12 +81,41 @@ impl Instruction {
     }
 }
 
-type Tape = Vec<u8>;
+type Cell = u8;
+
+struct Tape {
+    cells: Vec<Cell>,
+    pointer: usize,
+}
+
+impl Tape {
+    fn current(&self) -> Result<&Cell, String> {
+        self.cells
+            .get(self.pointer)
+            .ok_or_else(|| String::from("out of bounds"))
+    }
+    fn current_mut(&mut self) -> Result<&mut Cell, String> {
+        self.cells
+            .get_mut(self.pointer)
+            .ok_or_else(|| String::from("out of bounds"))
+    }
+    fn move_right(&mut self) -> () {
+        self.pointer += 1;
+    }
+    fn move_left(&mut self) -> () {
+        self.pointer -= 1;
+    }
+    fn cell_map<F>(&mut self, callback: F) -> Result<(), String>
+    where
+        F: FnOnce(&mut Cell) -> (),
+    {
+        self.current_mut().map(callback)
+    }
+}
 
 pub struct Interpreter {
     instructions: Vec<Instruction>,
     tape: Tape,
-    pointer: usize,
 }
 
 impl Interpreter {
@@ -100,43 +129,30 @@ impl Interpreter {
         )
         .map(|i| Interpreter {
             instructions: i,
-            tape: vec![0; 30000],
-            pointer: 0,
+            tape: Tape {
+                cells: vec![0; 30000],
+                pointer: 0,
+            },
         })
     }
 
-    fn cell_call<F>(tape: &mut Tape, pointer: &usize, f: F) -> Result<(), String>
-    where
-        F: FnOnce(&mut u8) -> (),
-    {
-        if let Some(cell) = tape.get_mut(*pointer) {
-            return Ok(f(cell));
-        } else {
-            return Err("out of bounds".to_string());
-        }
-    }
-
-    fn run_(
-        instructions: &[Instruction],
-        tape: &mut Tape,
-        pointer: &mut usize,
-    ) -> Result<(), String> {
+    fn run_(instructions: &[Instruction], tape: &mut Tape) -> Result<(), String> {
         for instruction in instructions {
             match instruction {
-                TapeRight => *pointer += 1,
-                TapeLeft => *pointer -= 1,
+                TapeRight => tape.move_right(),
+                TapeLeft => tape.move_left(),
                 CellInc => {
-                    Interpreter::cell_call(tape, pointer, |cell| {
+                    tape.cell_map(|cell| {
                         *cell = cell.wrapping_add(1);
                     })?;
                 }
                 CellDec => {
-                    Interpreter::cell_call(tape, pointer, |cell| {
+                    tape.cell_map(|cell| {
                         *cell = cell.wrapping_sub(1);
                     })?;
                 }
                 CellPrint => {
-                    Interpreter::cell_call(tape, pointer, |cell| {
+                    tape.cell_map(|cell| {
                         print!("{}", *cell as char);
                     })?;
                 }
@@ -144,7 +160,7 @@ impl Interpreter {
                     let mut i: [u8; 1] = [0; 1];
                     let u = std::io::stdin().read_exact(&mut i);
                     if let Ok(_) = u {
-                        Interpreter::cell_call(tape, pointer, |cell| {
+                        tape.cell_map(|cell| {
                             *cell = i[0];
                         })?;
                     } else {
@@ -152,11 +168,11 @@ impl Interpreter {
                     }
                 }
                 TapeLoop(i) => {
-                    while let Some(n) = tape.get(*pointer) {
-                        if *n == 0 {
+                    while let Ok(cell) = tape.current() {
+                        if *cell == 0 {
                             break;
                         }
-                        Interpreter::run_(i, tape, pointer)?
+                        Interpreter::run_(i, tape)?
                     }
                 }
             }
@@ -165,6 +181,6 @@ impl Interpreter {
     }
 
     pub fn run(&mut self) -> Result<(), String> {
-        Interpreter::run_(&self.instructions, &mut self.tape, &mut self.pointer)
+        Interpreter::run_(&self.instructions, &mut self.tape)
     }
 }
