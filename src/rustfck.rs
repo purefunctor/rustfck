@@ -100,15 +100,15 @@ impl Tape {
             .get_mut(self.pointer)
             .ok_or_else(|| String::from("out of bounds"))
     }
-    fn move_right(&mut self) -> () {
+    fn move_right(&mut self) {
         self.pointer += 1;
     }
-    fn move_left(&mut self) -> () {
+    fn move_left(&mut self) {
         self.pointer -= 1;
     }
     fn cell_map<F>(&mut self, callback: F) -> Result<(), String>
     where
-        F: FnOnce(&mut Cell) -> (),
+        F: FnOnce(&mut Cell),
     {
         self.current_mut().map(callback)
     }
@@ -159,8 +159,7 @@ impl Interpreter {
                 }
                 CellFetch => {
                     let mut i: [u8; 1] = [0; 1];
-                    let u = std::io::stdin().read_exact(&mut i);
-                    if let Ok(_) = u {
+                    if std::io::stdin().read_exact(&mut i).is_ok() {
                         tape.cell_map(|cell| {
                             *cell = i[0];
                         })?;
