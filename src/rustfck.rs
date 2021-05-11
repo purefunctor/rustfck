@@ -64,14 +64,15 @@ impl Instruction {
                         context.push(Vec::new());
                     }
                     LoopStop => {
-                        if let Some(child) = context.pop() {
-                            context
-                                .last_mut()
-                                .unwrap_or(&mut instructions)
-                                .push(TapeLoop(child));
-                        } else {
-                            return Err("unmatched brackets!".to_string());
-                        }
+                        context
+                            .pop()
+                            .map(|child| {
+                                context
+                                    .last_mut()
+                                    .unwrap_or(&mut instructions)
+                                    .push(TapeLoop(child))
+                            })
+                            .ok_or_else(|| String::from("unmatched brackets!"))?;
                     }
                     _ => (),
                 };
