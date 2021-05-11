@@ -127,7 +127,7 @@ impl Interpreter {
                     }
                 }
                 CellPrint => {
-                    if let Some(c) = tape.get_mut(*pointer) {
+                    if let Some(c) = tape.get(*pointer) {
                         print!("{}", c.0 as char);
                     }
                 }
