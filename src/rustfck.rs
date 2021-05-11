@@ -1,6 +1,5 @@
 use either::Either::{Left, Right};
 use std::io::Read;
-use std::num::Wrapping;
 use Instruction::*;
 use Token::*;
 
@@ -82,8 +81,7 @@ impl Instruction {
     }
 }
 
-type Cell = Wrapping<u8>;
-type Tape = Vec<Cell>;
+type Tape = Vec<u8>;
 
 pub struct Interpreter {
     instructions: Vec<Instruction>,
@@ -102,7 +100,7 @@ impl Interpreter {
         )
         .map(|i| Interpreter {
             instructions: i,
-            tape: vec![Wrapping(0); 30000],
+            tape: vec![0; 30000],
             pointer: 0,
         })
     }
@@ -118,17 +116,17 @@ impl Interpreter {
                 TapeLeft => *pointer -= 1,
                 CellInc => {
                     if let Some(c) = tape.get_mut(*pointer) {
-                        *c += Wrapping(1);
+                        *c = c.wrapping_add(1);
                     }
                 }
                 CellDec => {
                     if let Some(c) = tape.get_mut(*pointer) {
-                        *c -= Wrapping(1);
+                        *c = c.wrapping_sub(1);
                     }
                 }
                 CellPrint => {
                     if let Some(c) = tape.get(*pointer) {
-                        print!("{}", c.0 as char);
+                        print!("{}", *c as char);
                     }
                 }
                 CellFetch => {
@@ -136,7 +134,7 @@ impl Interpreter {
                     match std::io::stdin().read_exact(&mut i) {
                         Ok(_) => {
                             if let Some(c) = tape.get_mut(*pointer) {
-                                *c = Wrapping(i[0]);
+                                *c = i[0];
                             }
                         }
                         Err(_) => {
@@ -146,7 +144,7 @@ impl Interpreter {
                 }
                 TapeLoop(i) => {
                     while let Some(n) = tape.get(*pointer) {
-                        if n.0 == 0 {
+                        if *n == 0 {
                             break;
                         }
                         if let Err(e) = Interpreter::run_(i, tape, pointer) {
