@@ -105,6 +105,17 @@ impl Interpreter {
         })
     }
 
+    fn cell_call<F>(tape: &mut Tape, pointer: &usize, f: F) -> Result<(), String>
+    where
+        F: FnOnce(&mut u8) -> (),
+    {
+        if let Some(cell) = tape.get_mut(*pointer) {
+            return Ok(f(cell));
+        } else {
+            return Err("out of bounds".to_string());
+        }
+    }
+
     fn run_(
         instructions: &[Instruction],
         tape: &mut Tape,
@@ -115,31 +126,29 @@ impl Interpreter {
                 TapeRight => *pointer += 1,
                 TapeLeft => *pointer -= 1,
                 CellInc => {
-                    if let Some(c) = tape.get_mut(*pointer) {
-                        *c = c.wrapping_add(1);
-                    }
+                    Interpreter::cell_call(tape, pointer, |cell| {
+                        *cell = cell.wrapping_add(1);
+                    })?;
                 }
                 CellDec => {
-                    if let Some(c) = tape.get_mut(*pointer) {
-                        *c = c.wrapping_sub(1);
-                    }
+                    Interpreter::cell_call(tape, pointer, |cell| {
+                        *cell = cell.wrapping_sub(1);
+                    })?;
                 }
                 CellPrint => {
-                    if let Some(c) = tape.get(*pointer) {
-                        print!("{}", *c as char);
-                    }
+                    Interpreter::cell_call(tape, pointer, |cell| {
+                        print!("{}", *cell as char);
+                    })?;
                 }
                 CellFetch => {
                     let mut i: [u8; 1] = [0; 1];
-                    match std::io::stdin().read_exact(&mut i) {
-                        Ok(_) => {
-                            if let Some(c) = tape.get_mut(*pointer) {
-                                *c = i[0];
-                            }
-                        }
-                        Err(_) => {
-                            return Err("cannot fetch".to_string());
-                        }
+                    let u = std::io::stdin().read_exact(&mut i);
+                    if let Ok(_) = u {
+                        Interpreter::cell_call(tape, pointer, |cell| {
+                            *cell = i[0];
+                        })?;
+                    } else {
+                        return Err("cannot_etch".to_string());
                     }
                 }
                 TapeLoop(i) => {
@@ -147,9 +156,7 @@ impl Interpreter {
                         if *n == 0 {
                             break;
                         }
-                        if let Err(e) = Interpreter::run_(i, tape, pointer) {
-                            return Err(e);
-                        }
+                        Interpreter::run_(i, tape, pointer)?
                     }
                 }
             }
